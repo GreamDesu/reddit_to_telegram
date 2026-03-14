@@ -674,7 +674,7 @@ wheels = [
 ]
 
 [[package]]
-name = "reddit_to_telegram"
+name = "reddit-telegram"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

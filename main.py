@@ -282,6 +282,19 @@ async def download_video(url: str, access_token: str | None = None) -> str | Non
         return None
 
 
+def get_reddit_video_url(sub: Submission) -> str | None:
+    """Extract the direct DASH/HLS/fallback URL from submission media data.
+
+    Using this avoids yt-dlp making its own API call to www.reddit.com (which is
+    IP-blocked on some hosting providers). The URL returned is a pre-signed CDN
+    URL that yt-dlp can download without any Reddit API interaction.
+    """
+    media = getattr(sub, "media", None) or {}
+    rv = media.get("reddit_video", {})
+    # DASH manifest bundles video+audio; prefer it. Fall back to HLS, then mp4.
+    return rv.get("dash_url") or rv.get("hls_url") or rv.get("fallback_url") or None
+
+
 def get_gallery_urls(sub: Submission) -> list[str]:
     """Extract ordered image URLs from a Reddit gallery post."""
     media_metadata: dict = getattr(sub, "media_metadata", {}) or {}
@@ -383,7 +396,12 @@ async def post_to_telegram(bot: Bot, sub: Submission, reddit: asyncpraw.Reddit |
         # Video post (Reddit-hosted or external)
         # ------------------------------------------------------------------
         elif post_type == "video":
-            download_url = f"https://www.reddit.com{sub.permalink}" if "v.redd.it" in url else url
+            if "v.redd.it" in url:
+                # Pass the direct DASH/HLS URL to yt-dlp so it never calls www.reddit.com.
+                # The pre-signed CDN URL is embedded in the submission data we already loaded.
+                download_url = get_reddit_video_url(sub) or f"https://www.reddit.com{sub.permalink}"
+            else:
+                download_url = url
             access_token = await get_access_token(reddit) if reddit else None
             video_path = await download_video(download_url, access_token)
             if video_path:
