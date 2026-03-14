@@ -428,11 +428,35 @@ async def post_to_telegram(bot: Bot, sub: Submission, reddit: asyncpraw.Reddit |
                     except OSError:
                         pass
             else:
-                await bot.send_message(
-                    chat_id=TELEGRAM_CHAT_ID,
-                    text=f"<b>{t}</b>\n{url}\n{short_url}\n{TELEGRAM_CHANNEL}",
-                    parse_mode="HTML",
-                )
+                # yt-dlp download failed (e.g. server IP is blocked by Reddit CDN).
+                # Try sending the fallback MP4 URL directly — Telegram's servers will
+                # fetch it from Reddit CDN on our behalf from a non-blocked IP.
+                sent = False
+                if "v.redd.it" in url:
+                    media = getattr(sub, "media", None) or {}
+                    fallback_mp4 = (media.get("reddit_video") or {}).get("fallback_url")
+                    if fallback_mp4:
+                        logger.info("Trying Telegram URL video send for %s", sub.id)
+                        try:
+                            await bot.send_video(
+                                chat_id=TELEGRAM_CHAT_ID,
+                                video=fallback_mp4,
+                                caption=caption,
+                                parse_mode="HTML",
+                                supports_streaming=True,
+                                has_spoiler=spoiler,
+                                read_timeout=60,
+                                write_timeout=60,
+                            )
+                            sent = True
+                        except TelegramError as e:
+                            logger.warning("Telegram URL video send failed (%s), sending link", e)
+                if not sent:
+                    await bot.send_message(
+                        chat_id=TELEGRAM_CHAT_ID,
+                        text=f"<b>{t}</b>\n{url}\n{short_url}\n{TELEGRAM_CHANNEL}",
+                        parse_mode="HTML",
+                    )
 
         # ------------------------------------------------------------------
         # Gallery post
