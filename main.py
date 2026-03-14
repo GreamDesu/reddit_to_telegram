@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import datetime
 import time
 import tomllib
 import urllib.request
@@ -77,6 +78,13 @@ MAX_GALLERY_ITEMS  = 10  # Telegram media group limit
 # ---------------------------------------------------------------------------
 # Persistence
 # ---------------------------------------------------------------------------
+
+def seconds_until_next_slot() -> float:
+    """Return seconds until the next :00 or :30 wall-clock mark."""
+    now = datetime.datetime.now()
+    elapsed = (now.minute % 30) * 60 + now.second + now.microsecond / 1_000_000
+    return 30 * 60 - elapsed
+
 
 def load_posted_ids() -> set[str]:
     if not POSTED_IDS_FILE.exists():
@@ -643,22 +651,25 @@ async def main() -> None:
                 if not posts:
                     logger.warning("No posts returned from Reddit. Will retry next interval.")
                 else:
+                    posted_this_cycle = False
                     for p in posts:
                         result = await handle_submission(bot, p, posted_ids, reddit)
-                        if result in ("posted", "failed", "already_posted"):
+                        if result in ("posted", "failed"):
+                            posted_this_cycle = True
                             break
-                        # removed/nsfw/low_score: keep iterating to find a postable submission
+                        # already_posted / removed / nsfw / low_score: try next post
 
-                    if all(p.id in posted_ids for p in posts):
-                        logger.info("All top posts for today already handled. Waiting for next interval.")
+                    if not posted_this_cycle:
+                        logger.info("No new postable submissions found. Will retry next interval.")
 
             except (asyncprawcore.exceptions.PrawcoreException, asyncpraw.exceptions.AsyncPRAWException) as e:
                 logger.error("Reddit API error: %s", e)
             except Exception as e:
                 logger.error("Unexpected error: %s", e, exc_info=True)
 
-            logger.info("Sleeping %d minutes until next post...", POST_INTERVAL // 60)
-            await asyncio.sleep(POST_INTERVAL)
+            delay = seconds_until_next_slot()
+            logger.info("Sleeping %.0fs until next :00/:30 slot...", delay)
+            await asyncio.sleep(delay)
     finally:
         await reddit.close()
 
