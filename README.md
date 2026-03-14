@@ -72,6 +72,10 @@ TELEGRAM_CHAT_ID=@your_channel
 
 REDDIT_CLIENT_ID=your_client_id
 REDDIT_CLIENT_SECRET=your_client_secret
+
+# Required for video downloads — Reddit enforces auth on its video CDN
+REDDIT_USERNAME=your_reddit_username
+REDDIT_PASSWORD=your_reddit_password
 ```
 
 All other settings are in `config.toml` — edit to set your subreddit and preferences:
@@ -139,6 +143,8 @@ This runs the post through the exact same pipeline as the main bot (filter → p
 | `TELEGRAM_CHAT_ID` | Channel username or numeric ID |
 | `REDDIT_CLIENT_ID` | Reddit app client ID |
 | `REDDIT_CLIENT_SECRET` | Reddit app client secret |
+| `REDDIT_USERNAME` | Reddit account username — required for video downloads |
+| `REDDIT_PASSWORD` | Reddit account password — required for video downloads |
 
 ---
 

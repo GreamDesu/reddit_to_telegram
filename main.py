@@ -52,6 +52,8 @@ TELEGRAM_BOT_TOKEN  = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHAT_ID    = os.getenv("TELEGRAM_CHAT_ID")
 REDDIT_CLIENT_ID     = os.getenv("REDDIT_CLIENT_ID")
 REDDIT_CLIENT_SECRET = os.getenv("REDDIT_CLIENT_SECRET")
+REDDIT_USERNAME      = os.getenv("REDDIT_USERNAME")
+REDDIT_PASSWORD      = os.getenv("REDDIT_PASSWORD")
 
 # Settings — from config.toml
 SUBREDDIT         = _cfg["reddit"]["subreddit"]
@@ -237,6 +239,9 @@ def _download_video_sync(url: str) -> str | None:
         "ignoreerrors": False,
         "abort_on_unavailable_fragments": False,
     }
+    if REDDIT_USERNAME and REDDIT_PASSWORD:
+        ydl_opts["username"] = REDDIT_USERNAME
+        ydl_opts["password"] = REDDIT_PASSWORD
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
