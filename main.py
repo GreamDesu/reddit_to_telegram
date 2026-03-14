@@ -8,6 +8,7 @@ import logging
 import os
 import shutil
 import tempfile
+import time
 import tomllib
 import traceback
 from pathlib import Path
@@ -62,6 +63,7 @@ POSTED_IDS_FILE   = Path(_cfg["bot"].get("posted_ids_file", "posted_ids.json"))
 MAX_VIDEO_DURATION = int(_cfg["video"]["max_duration_minutes"]) * 60
 DOWNLOAD_TIMEOUT   = int(_cfg["video"]["download_timeout_minutes"]) * 60
 MAX_FILE_SIZE      = int(_cfg["video"]["max_file_size_mb"]) * 1024 * 1024
+HISTORY_TTL        = int(_cfg["bot"].get("history_ttl_hours", 48)) * 3600
 
 
 # ---------------------------------------------------------------------------
@@ -69,18 +71,46 @@ MAX_FILE_SIZE      = int(_cfg["video"]["max_file_size_mb"]) * 1024 * 1024
 # ---------------------------------------------------------------------------
 
 def load_posted_ids() -> set[str]:
-    if POSTED_IDS_FILE.exists():
-        try:
-            with open(POSTED_IDS_FILE) as f:
-                return set(json.load(f))
-        except (json.JSONDecodeError, ValueError):
-            logger.warning("posted_ids.json is empty or corrupt, starting fresh.")
-    return set()
+    if not POSTED_IDS_FILE.exists():
+        return set()
+    try:
+        with open(POSTED_IDS_FILE) as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, ValueError):
+        logger.warning("posted_ids.json is empty or corrupt, starting fresh.")
+        return set()
+
+    # Migrate from old flat-list format — treat all as added right now
+    if isinstance(data, list):
+        data = {id_: time.time() for id_ in data}
+
+    # Prune entries older than HISTORY_TTL
+    cutoff = time.time() - HISTORY_TTL
+    pruned = {id_: ts for id_, ts in data.items() if ts > cutoff}
+    if len(pruned) < len(data):
+        logger.info("Pruned %d expired IDs from history (%d remaining).", len(data) - len(pruned), len(pruned))
+        with open(POSTED_IDS_FILE, "w") as f:
+            json.dump(pruned, f, indent=2)
+
+    return set(pruned.keys())
 
 
 def save_posted_ids(ids: set[str]) -> None:
+    # Reload existing timestamps so we don't overwrite them with a fresh time
+    existing: dict[str, float] = {}
+    if POSTED_IDS_FILE.exists():
+        try:
+            with open(POSTED_IDS_FILE) as f:
+                data = json.load(f)
+            if isinstance(data, dict):
+                existing = data
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    now = time.time()
+    merged = {id_: existing.get(id_, now) for id_ in ids}
     with open(POSTED_IDS_FILE, "w") as f:
-        json.dump(list(ids), f, indent=2)
+        json.dump(merged, f, indent=2)
 
 
 # ---------------------------------------------------------------------------

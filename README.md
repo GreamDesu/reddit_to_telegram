@@ -125,6 +125,7 @@ This runs the post through the exact same pipeline as the main bot (filter → p
 | `reddit.user_agent` | `"telegram-reddit-bot/1.0"` | Reddit API user agent string |
 | `telegram.channel` | `"@your_channel"` | Channel handle shown at the bottom of every post |
 | `bot.post_interval_minutes` | `30` | Minutes between posts |
+| `bot.history_ttl_hours` | `48` | Purge post IDs older than this; Reddit top-day posts expire in ~24h so 48h gives a safe buffer |
 | `bot.posted_ids_file` | `"posted_ids.json"` | Path to post history file |
 | `video.max_duration_minutes` | `5` | Skip videos longer than this |
 | `video.download_timeout_minutes` | `3` | Abort download if it takes longer than this |
@@ -147,7 +148,7 @@ This runs the post through the exact same pipeline as the main bot (filter → p
 
 ```bash
 sudo apt update
-sudo apt install -y python3.11 python3.11-venv ffmpeg curl
+sudo apt install -y ffmpeg curl
 
 # Install uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -229,6 +230,23 @@ cd /opt/reddit_to_telegram
 git pull
 uv sync
 sudo systemctl restart reddit_to_telegram
+```
+
+After pulling, check if `config.toml` has any new keys by comparing with the repo's version — new options won't be added to your local file automatically. `posted_ids.json` and `.env` are never touched by git.
+
+### Remove completely
+
+```bash
+# Stop and disable the service
+sudo systemctl stop reddit_to_telegram
+sudo systemctl disable reddit_to_telegram
+
+# Remove the service file
+sudo rm /etc/systemd/system/reddit_to_telegram.service
+sudo systemctl daemon-reload
+
+# Remove the project directory (includes .env, posted_ids.json, venv)
+sudo rm -rf /opt/reddit_to_telegram
 ```
 
 ---

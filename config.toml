@@ -14,6 +14,7 @@ channel = "@yourchannelname"       # shown at the bottom of every post
 [bot]
 post_interval_minutes = 30    # how often to post
 posted_ids_file = "posted_ids.json"
+history_ttl_hours = 48        # purge post IDs older than this (Reddit top-day posts expire in ~24h)
 
 [video]
 max_duration_minutes = 5      # skip videos longer than this
