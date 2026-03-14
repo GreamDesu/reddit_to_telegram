@@ -4,12 +4,13 @@
 # Secrets (bot token, API keys) go in .env, not here.
 
 [reddit]
-subreddit = ""          # subreddit name without r/
+subreddit = "pics"            # subreddit name without r/ (override with SUBREDDIT env var)
 fetch_limit = 100             # how many top-of-day posts to pull per cycle
+min_score = 1                 # skip posts with fewer upvotes than this
 user_agent = "telegram-reddit-bot/1.0"
 
 [telegram]
-channel = "@yourchannelname"       # shown at the bottom of every post
+channel = "@your_channel"  # shown at the bottom of every post (override with TELEGRAM_CHANNEL env var)
 
 [bot]
 post_interval_minutes = 30    # how often to post
