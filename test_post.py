@@ -21,7 +21,7 @@ async def main():
         print(f"ID:    {sub.id}")
         print()
         posted_ids = load_posted_ids()
-        result = await handle_submission(bot, sub, posted_ids)
+        result = await handle_submission(bot, sub, posted_ids, reddit)
         print("Result:", result)
     finally:
         await reddit.close()

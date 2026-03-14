@@ -130,6 +130,16 @@ def make_reddit() -> asyncpraw.Reddit:
     )
 
 
+async def get_access_token(reddit: asyncpraw.Reddit) -> str | None:
+    """Return the current OAuth Bearer token from the asyncpraw session."""
+    try:
+        await reddit._core._authorizer.refresh()
+        return reddit._core._authorizer.access_token
+    except Exception as e:
+        logger.warning("Could not retrieve Reddit access token: %s", e)
+        return None
+
+
 async def fetch_top_posts(reddit: asyncpraw.Reddit) -> list[Submission]:
     subreddit = await reddit.subreddit(SUBREDDIT)
     posts = []
@@ -224,7 +234,7 @@ def split_text(text: str, limit: int = MessageLimit.MAX_TEXT_LENGTH) -> list[str
     return chunks
 
 
-def _download_video_sync(url: str) -> str | None:
+def _download_video_sync(url: str, access_token: str | None = None) -> str | None:
     """Blocking yt-dlp download. Call via asyncio.to_thread."""
     tmp_dir = tempfile.mkdtemp()
     out_tmpl = os.path.join(tmp_dir, "video.%(ext)s")
@@ -239,7 +249,9 @@ def _download_video_sync(url: str) -> str | None:
         "ignoreerrors": False,
         "abort_on_unavailable_fragments": False,
     }
-    if REDDIT_USERNAME and REDDIT_PASSWORD:
+    if access_token:
+        ydl_opts["http_headers"] = {"Authorization": f"Bearer {access_token}"}
+    elif REDDIT_USERNAME and REDDIT_PASSWORD:
         ydl_opts["username"] = REDDIT_USERNAME
         ydl_opts["password"] = REDDIT_PASSWORD
     try:
@@ -258,11 +270,11 @@ def _download_video_sync(url: str) -> str | None:
     return None
 
 
-async def download_video(url: str) -> str | None:
+async def download_video(url: str, access_token: str | None = None) -> str | None:
     """Download video in a thread with a hard timeout."""
     try:
         return await asyncio.wait_for(
-            asyncio.to_thread(_download_video_sync, url),
+            asyncio.to_thread(_download_video_sync, url, access_token),
             timeout=DOWNLOAD_TIMEOUT,
         )
     except asyncio.TimeoutError:
@@ -294,7 +306,7 @@ def get_gallery_urls(sub: Submission) -> list[str]:
 # Posting
 # ---------------------------------------------------------------------------
 
-async def post_to_telegram(bot: Bot, sub: Submission) -> bool:
+async def post_to_telegram(bot: Bot, sub: Submission, reddit: asyncpraw.Reddit | None = None) -> bool:
     title = sub.title
     url = sub.url
     selftext = sub.selftext or ""
@@ -372,7 +384,8 @@ async def post_to_telegram(bot: Bot, sub: Submission) -> bool:
         # ------------------------------------------------------------------
         elif post_type == "video":
             download_url = f"https://www.reddit.com{sub.permalink}" if "v.redd.it" in url else url
-            video_path = await download_video(download_url)
+            access_token = await get_access_token(reddit) if reddit else None
+            video_path = await download_video(download_url, access_token)
             if video_path:
                 try:
                     with open(video_path, "rb") as vf:
@@ -457,7 +470,7 @@ async def post_to_telegram(bot: Bot, sub: Submission) -> bool:
         return False
 
 
-async def handle_submission(bot: Bot, sub: Submission, posted_ids: set[str]) -> str:
+async def handle_submission(bot: Bot, sub: Submission, posted_ids: set[str], reddit: asyncpraw.Reddit | None = None) -> str:
     """Run one submission through the full filter + post pipeline.
 
     Mutates posted_ids and persists it for skip/post outcomes.
@@ -475,7 +488,7 @@ async def handle_submission(bot: Bot, sub: Submission, posted_ids: set[str]) -> 
         posted_ids.add(sub.id)
         save_posted_ids(posted_ids)
         return "nsfw"
-    success = await post_to_telegram(bot, sub)
+    success = await post_to_telegram(bot, sub, reddit)
     if success:
         posted_ids.add(sub.id)
         save_posted_ids(posted_ids)
@@ -513,7 +526,7 @@ async def main() -> None:
                     logger.warning("No posts returned from Reddit. Will retry next interval.")
                 else:
                     for p in posts:
-                        result = await handle_submission(bot, p, posted_ids)
+                        result = await handle_submission(bot, p, posted_ids, reddit)
                         if result in ("posted", "failed", "already_posted"):
                             break
                         # removed/nsfw: already saved to posted_ids, keep iterating
