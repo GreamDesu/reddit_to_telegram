@@ -1,0 +1,14 @@
+[project]
+name = "reddit-telegram"
+version = "0.1.0"
+description = "Telegram bot that reposts from subreddit"
+requires-python = ">=3.11"
+dependencies = [
+    "python-telegram-bot>=21.0",
+    "python-dotenv>=1.0",
+    "asyncpraw>=7.7",
+    "yt-dlp>=2024.1",
+]
+
+[dependency-groups]
+dev = []

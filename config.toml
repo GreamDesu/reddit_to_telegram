@@ -1,0 +1,21 @@
+# ---------------------------------------------------------------------------
+# Telegram Reddit Bot — configuration
+# ---------------------------------------------------------------------------
+# Secrets (bot token, API keys) go in .env, not here.
+
+[reddit]
+subreddit = ""          # subreddit name without r/
+fetch_limit = 100             # how many top-of-day posts to pull per cycle
+user_agent = "telegram-reddit-bot/1.0"
+
+[telegram]
+channel = "@yourchannelname"       # shown at the bottom of every post
+
+[bot]
+post_interval_minutes = 30    # how often to post
+posted_ids_file = "posted_ids.json"
+
+[video]
+max_duration_minutes = 5      # skip videos longer than this
+download_timeout_minutes = 3  # abort download if it takes longer than this
+max_file_size_mb = 50         # Telegram bot upload limit
