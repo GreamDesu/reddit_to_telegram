@@ -154,10 +154,10 @@ async def get_access_token(reddit: asyncpraw.Reddit) -> str | None:
         return None
 
 
-async def fetch_top_posts(reddit: asyncpraw.Reddit) -> list[Submission]:
+async def fetch_hot_posts(reddit: asyncpraw.Reddit) -> list[Submission]:
     subreddit = await reddit.subreddit(SUBREDDIT)
     posts = []
-    async for post in subreddit.top(time_filter="day", limit=FETCH_LIMIT):
+    async for post in subreddit.hot(limit=FETCH_LIMIT):
         posts.append(await resolve_crosspost(post, reddit))
     return posts
 
@@ -649,7 +649,7 @@ async def main() -> None:
         while True:
             try:
                 posted_ids = load_posted_ids()
-                posts = await fetch_top_posts(reddit)
+                posts = await fetch_hot_posts(reddit)
 
                 if not posts:
                     logger.warning("No posts returned from Reddit. Will retry next interval.")
