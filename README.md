@@ -1,6 +1,6 @@
 # reddit_to_telegram
 
-Telegram bot that reposts top daily posts from any subreddit on a configurable schedule.
+Telegram bot that reposts top daily posts from any subreddit, posting at fixed :00 and :30 wall-clock slots.
 
 Supports text, image, GIF, video, and gallery posts. Automatically skips removed, NSFW, and already-posted content. Applies spoiler blur and `<tg-spoiler>` markup for posts tagged as spoilers.
 
@@ -8,10 +8,11 @@ Supports text, image, GIF, video, and gallery posts. Automatically skips removed
 
 ## Features
 
-- Reposts top-of-day posts from any subreddit on a configurable schedule (default: every 30 minutes)
+- Reposts top-of-day posts from any subreddit at fixed :00 and :30 wall-clock slots (no drift)
+- Includes post body text in media captions; overflows into follow-up messages if too long
 - Splits long text posts across multiple messages
-- Downloads Reddit videos with audio (fetches separate DASH streams and merges via ffmpeg)
-- Skips posts that are removed, NSFW, or already posted
+- Downloads Reddit videos with audio (fetches separate DASH streams and merges via ffmpeg, no yt-dlp)
+- Skips already-posted, removed, NSFW, and low-score posts — tries the next post rather than sleeping
 - Applies Telegram spoiler effect on spoiler-tagged posts
 - Falls back to a link message if media upload fails
 - Persists post history in `posted_ids.json` across restarts
@@ -20,11 +21,11 @@ Supports text, image, GIF, video, and gallery posts. Automatically skips removed
 
 ## Prerequisites
 
-| Tool | Version | Notes |
-|------|---------|-------|
-| Python | 3.11+ | |
-| [uv](https://docs.astral.sh/uv/) | latest | package + venv manager |
-| ffmpeg | any recent | required for merging Reddit video + audio streams |
+| Tool | Notes |
+|------|-------|
+| Python 3.11+ | |
+| [uv](https://docs.astral.sh/uv/) | package + venv manager |
+| ffmpeg | required for merging Reddit video + audio streams |
 
 ---
 
@@ -36,8 +37,8 @@ Supports text, image, GIF, video, and gallery posts. Automatically skips removed
 2. Copy the **bot token** (looks like `123456789:AABBccdd...`)
 3. Add the bot as an **admin** to your channel
 4. Get the **chat ID** of your channel:
-   - For a public channel: use `@your_channel_name`
-   - For a private channel: forward a message to [@userinfobot](https://t.me/userinfobot) to get the numeric ID
+   - Public channel: use `@your_channel_name`
+   - Private channel: forward a message to [@userinfobot](https://t.me/userinfobot) to get the numeric ID
 
 ### Reddit API
 
@@ -55,10 +56,7 @@ Supports text, image, GIF, video, and gallery posts. Automatically skips removed
 git clone https://github.com/your-username/reddit_to_telegram.git
 cd reddit_to_telegram
 
-# Install dependencies
 uv sync
-
-# Copy and fill in credentials
 cp .env.example .env
 ```
 
@@ -71,12 +69,12 @@ TELEGRAM_CHAT_ID=@your_channel
 REDDIT_CLIENT_ID=your_client_id
 REDDIT_CLIENT_SECRET=your_client_secret
 
-# Personal overrides — these take priority over config.toml defaults
+# Personal overrides — take priority over config.toml defaults
 SUBREDDIT=your_subreddit
 TELEGRAM_CHANNEL=@your_channel
 ```
 
-Shared/non-secret settings live in `config.toml`. The `SUBREDDIT` and `TELEGRAM_CHANNEL` env vars let you override the defaults there without modifying the file.
+Shared non-secret settings live in `config.toml`. The `SUBREDDIT` and `TELEGRAM_CHANNEL` env vars let you override the defaults without modifying that file (useful to keep `config.toml` clean in git).
 
 Run:
 
@@ -88,13 +86,13 @@ uv run main.py
 
 ## 3. Test a specific post
 
-Change `POST_ID` in `test_post.py` to any Reddit post ID, then:
+Set `POST_ID` in `test_post.py` to any Reddit post ID, then:
 
 ```bash
 uv run test_post.py
 ```
 
-This runs the post through the exact same pipeline as the main bot (filter → post → save history).
+Runs the post through the exact same pipeline as the main bot (filter → post → save history).
 
 ---
 
@@ -106,10 +104,10 @@ This runs the post through the exact same pipeline as the main bot (filter → p
 |-----|---------|-------------|
 | `reddit.subreddit` | `"pics"` | Subreddit to repost from (without `r/`). Override with `SUBREDDIT` env var. |
 | `reddit.fetch_limit` | `100` | How many top-of-day posts to pull per cycle |
-| `reddit.user_agent` | `"telegram-reddit-bot/1.0"` | Reddit API user agent string |
-| `telegram.channel` | `"@your_channel"` | Channel handle shown at the bottom of every post. Override with `TELEGRAM_CHANNEL` env var. |
-| `bot.post_interval_minutes` | `30` | Minutes between posts |
-| `bot.history_ttl_hours` | `48` | Purge post IDs older than this; Reddit top-day posts expire in ~24h so 48h gives a safe buffer |
+| `reddit.min_score` | `1` | Skip posts below this score |
+| `reddit.user_agent` | `"telegram-reddit-bot/1.0"` | Reddit API user agent |
+| `telegram.channel` | `"@your_channel"` | Footer shown at the bottom of every post. Override with `TELEGRAM_CHANNEL` env var. |
+| `bot.history_ttl_hours` | `48` | Purge post IDs older than this (Reddit top-day posts expire in ~24h) |
 | `bot.posted_ids_file` | `"posted_ids.json"` | Path to post history file |
 | `video.max_duration_minutes` | `5` | Skip videos longer than this |
 | `video.download_timeout_minutes` | `3` | Abort download if it takes longer than this |
@@ -133,8 +131,7 @@ This runs the post through the exact same pipeline as the main bot (filter → p
 ### Install system dependencies
 
 ```bash
-sudo apt update
-sudo apt install -y ffmpeg curl
+sudo apt update && sudo apt install -y ffmpeg curl
 
 # Install uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -160,8 +157,6 @@ nano .env   # fill in your credentials
 sudo nano /etc/systemd/system/reddit_to_telegram.service
 ```
 
-Paste:
-
 ```ini
 [Unit]
 Description=Reddit to Telegram Bot
@@ -173,8 +168,8 @@ Type=simple
 User=YOUR_LINUX_USER
 WorkingDirectory=/opt/reddit_to_telegram
 ExecStart=/root/.local/bin/uv run main.py
-Restart=on-failure
-RestartSec=30
+Restart=always
+RestartSec=10
 StandardOutput=journal
 StandardError=journal
 
@@ -182,10 +177,7 @@ StandardError=journal
 WantedBy=multi-user.target
 ```
 
-> Replace `YOUR_LINUX_USER` with the user that owns `/opt/reddit_to_telegram` (e.g. `ubuntu`, `debian`, or `root`).
-> Adjust the `uv` path if needed — check with `which uv`.
-
-Enable and start:
+> Replace `YOUR_LINUX_USER` with the owner of `/opt/reddit_to_telegram`. Adjust the `uv` path if needed (`which uv`).
 
 ```bash
 sudo systemctl daemon-reload
@@ -196,16 +188,9 @@ sudo systemctl start reddit_to_telegram
 ### Useful commands
 
 ```bash
-# Check status
 sudo systemctl status reddit_to_telegram
-
-# Follow live logs
 sudo journalctl -u reddit_to_telegram -f
-
-# Restart after config change
 sudo systemctl restart reddit_to_telegram
-
-# Stop
 sudo systemctl stop reddit_to_telegram
 ```
 
@@ -238,7 +223,8 @@ sudo rm -rf /opt/reddit_to_telegram
 reddit_to_telegram/
 ├── main.py            # bot logic
 ├── test_post.py       # one-shot test by post ID
-├── config.toml        # shared settings (subreddit, intervals, limits)
+├── test_caption.py    # test caption splitting with a local image
+├── config.toml        # shared settings (subreddit, limits)
 ├── pyproject.toml     # dependencies (managed by uv)
 ├── .env               # secrets + personal overrides (never commit)
 ├── .env.example       # template for .env

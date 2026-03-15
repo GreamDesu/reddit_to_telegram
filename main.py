@@ -185,6 +185,9 @@ async def resolve_crosspost(sub: Submission, reddit: asyncpraw.Reddit) -> Submis
         if getattr(sub, "over_18", False) or parent_data.get("over_18"):
             parent.over_18 = True
         parent.title = sub.title
+        # Keep a reference back to the crosspost so links always point to the
+        # post on the monitored subreddit, not to the original.
+        parent._crosspost_id = sub.id
         return parent
     except Exception as e:
         logger.warning("Could not resolve crosspost parent %s: %s", parent_id, e)
@@ -454,7 +457,7 @@ async def post_to_telegram(bot: Bot, sub: Submission, reddit: asyncpraw.Reddit |
     url = sub.url
     post_type = get_post_type(sub)
     spoiler = bool(getattr(sub, "spoiler", False))
-    short_url = f"https://redd.it/{sub.id}"
+    short_url = f"https://redd.it/{getattr(sub, '_crosspost_id', None) or sub.id}"
     t = html.escape(title)
 
     footer = f"\n{short_url}\n{TELEGRAM_CHANNEL}"

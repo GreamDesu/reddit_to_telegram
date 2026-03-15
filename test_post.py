@@ -8,7 +8,7 @@ load_dotenv()
 from telegram import Bot
 from main import make_reddit, resolve_crosspost, handle_submission, load_posted_ids
 
-POST_ID = "1rpq1ze"
+POST_ID = "1rt3bs8"
 
 async def main():
     reddit = make_reddit()
