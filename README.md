@@ -107,7 +107,7 @@ Runs the post through the exact same pipeline as the main bot (filter â†’ post â
 | `reddit.min_score` | `1` | Skip posts below this score |
 | `reddit.user_agent` | `"telegram-reddit-bot/1.0"` | Reddit API user agent |
 | `telegram.channel` | `"@your_channel"` | Footer shown at the bottom of every post. Override with `TELEGRAM_CHANNEL` env var. |
-| `bot.history_ttl_hours` | `48` | Purge post IDs older than this (Reddit top-day posts expire in ~24h) |
+| `bot.history_ttl_hours` | `168` | Purge post IDs older than this (1 week) |
 | `bot.posted_ids_file` | `"posted_ids.json"` | Path to post history file |
 | `video.max_duration_minutes` | `5` | Skip videos longer than this |
 | `video.download_timeout_minutes` | `3` | Abort download if it takes longer than this |
