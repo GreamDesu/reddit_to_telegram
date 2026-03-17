@@ -142,7 +142,7 @@ source $HOME/.local/bin/env
 
 ```bash
 cd /opt
-sudo git clone https://github.com/your-username/reddit_to_telegram.git
+sudo git clone https://github.com/GreamDesu/reddit_to_telegram.git
 sudo chown -R $USER:$USER /opt/reddit_to_telegram
 cd /opt/reddit_to_telegram
 
