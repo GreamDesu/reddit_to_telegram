@@ -6,7 +6,7 @@
 [reddit]
 subreddit = "pics"            # subreddit name without r/ (override with SUBREDDIT env var)
 fetch_limit = 100             # how many top-of-day posts to pull per cycle
-min_score = 1                 # skip posts with fewer upvotes than this
+min_score = 5                 # skip posts with fewer upvotes than this
 user_agent = "telegram-reddit-bot/1.0"
 
 [telegram]
