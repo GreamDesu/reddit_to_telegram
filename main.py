@@ -188,6 +188,8 @@ async def resolve_crosspost(sub: Submission, reddit: asyncpraw.Reddit) -> Submis
         # Keep a reference back to the crosspost so links always point to the
         # post on the monitored subreddit, not to the original.
         parent._crosspost_id = sub.id
+        # Use the crosspost's score (on our subreddit), not the original's.
+        parent._submission_score = sub.score
         return parent
     except Exception as e:
         logger.warning("Could not resolve crosspost parent %s: %s", parent_id, e)
@@ -600,8 +602,9 @@ async def handle_submission(bot: Bot, sub: Submission, posted_ids: set[str], red
     if sub.id in posted_ids:
         return "already_posted"
 
-    if sub.score < MIN_SCORE:
-        logger.info("Skipping low-score post %s (score=%d): %s", sub.id, sub.score, sub.title[:60])
+    score = getattr(sub, "_submission_score", sub.score)
+    if score < MIN_SCORE:
+        logger.info("Skipping low-score post %s (score=%d): %s", sub.id, score, sub.title[:60])
         return "low_score"
 
     if is_removed(sub):
