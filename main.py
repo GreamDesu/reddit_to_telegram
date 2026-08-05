@@ -32,6 +32,8 @@ logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+# httpx's INFO request log includes the Telegram bot token in the request URL.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 _SCRIPT_DIR = Path(__file__).parent
 
